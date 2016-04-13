@@ -1,5 +1,8 @@
+import cPickle
+import datetime
 import logging
 import webapp2
+import zlib
 
 from time import mktime
 from wsgiref.handlers import format_date_time
@@ -50,6 +53,7 @@ class CacheableHandler(webapp2.RequestHandler):
         if cached_response is None:
             self._set_cache_header_length(self.CACHE_HEADER_LENGTH)
             self.template_values["cache_key"] = self.cache_key
+            self.template_values["render_time"] = datetime.datetime.now()
             rendered = self._render(*args, **kw)
             if self._has_been_modified_since(self._last_modified):
                 self.response.out.write(rendered)
@@ -84,17 +88,18 @@ class CacheableHandler(webapp2.RequestHandler):
         return self.cache_key
 
     def _read_cache(self):
-        result = memcache.get(self.cache_key)
-        if result is None:
+        compressed_result = memcache.get(self.cache_key)
+        if compressed_result is None:
             return None
         else:
-            response, last_modified = result
+            response, last_modified = cPickle.loads(zlib.decompress(compressed_result))
             self._last_modified = last_modified
             return response
 
     def _write_cache(self, response):
         if tba_config.CONFIG["memcache"]:
-            memcache.set(self.cache_key, (response, self._last_modified), self._cache_expiration)
+            compressed = zlib.compress(cPickle.dumps((response, self._last_modified)))
+            memcache.set(self.cache_key, compressed, self._cache_expiration)
 
     @classmethod
     def delete_cache_multi(cls, cache_keys):
