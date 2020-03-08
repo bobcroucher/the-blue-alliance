@@ -2,6 +2,7 @@ from collections import defaultdict
 from google.appengine.ext import deferred
 from google.appengine.ext import ndb
 from helpers.cache_clearer import CacheClearer
+import tba_config
 
 
 class ManipulatorBase(object):
@@ -42,6 +43,9 @@ class ManipulatorBase(object):
         Makes a deferred call to clear cache.
         Needs to save _affected_references and dirty flag
         """
+        if not tba_config.CONFIG['database_query_cache'] and not tba_config.CONFIG['response_cache']:
+            return
+
         all_affected_references = []
         for model in models:
             if getattr(model, 'dirty', False) and hasattr(model, '_affected_references'):
@@ -53,7 +57,9 @@ class ManipulatorBase(object):
                 all_affected_references,
                 _queue='cache-clearing',
                 _transactional=ndb.in_transaction(),
-                _target='backend-tasks')
+                _target='default',
+                _url='/_ah/queue/deferred_manipulator_clearCache'
+            )
 
     @classmethod
     def _clearCacheDeferred(cls, all_affected_references):
@@ -119,7 +125,7 @@ class ManipulatorBase(object):
         If it does, update it and give it back. If it does not, give it back.
         """
         new_models = self.listify(new_models)
-        old_models = ndb.get_multi([ndb.Key(type(model).__name__, model.key_name) for model in new_models], use_cache=False)
+        old_models = ndb.get_multi([model.key for model in new_models], use_cache=False)
         new_models = [self.updateMergeBase(new_model, old_model, auto_union=auto_union) for (new_model, old_model) in zip(new_models, old_models)]
         return self.delistify(new_models)
 
@@ -189,7 +195,7 @@ class ManipulatorBase(object):
         if models:
             post_delete_hook = getattr(cls, "postDeleteHook", None)
             if callable(post_delete_hook):
-                deferred.defer(post_delete_hook, models, _queue="post-update-hooks")
+                deferred.defer(post_delete_hook, models, _queue="post-update-hooks", _url='/_ah/queue/deferred_manipulator_runPostDeleteHook')
 
     @classmethod
     def runPostUpdateHook(cls, models):
@@ -201,4 +207,4 @@ class ManipulatorBase(object):
             if callable(post_update_hook):
                 updated_attrs = [model._updated_attrs if hasattr(model, '_updated_attrs') else [] for model in models]
                 is_new = [model._is_new if hasattr(model, '_is_new') else False for model in models]
-                deferred.defer(post_update_hook, models, updated_attrs, is_new, _queue="post-update-hooks")
+                deferred.defer(post_update_hook, models, updated_attrs, is_new, _queue="post-update-hooks", _url='/_ah/queue/deferred_manipulator_runPostUpdateHook')

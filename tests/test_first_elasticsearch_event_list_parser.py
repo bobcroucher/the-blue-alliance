@@ -7,9 +7,8 @@ from datafeeds.parsers.first_elasticsearch.first_elasticsearch_event_list_parser
 from google.appengine.ext import ndb
 from google.appengine.ext import testbed
 
-from consts.district_type import DistrictType
 from consts.event_type import EventType
-from models.event import Event
+from models.district import District
 
 
 class TestFIRSTElasticSearchEventListParser(unittest2.TestCase):
@@ -18,6 +17,15 @@ class TestFIRSTElasticSearchEventListParser(unittest2.TestCase):
         self.testbed.activate()
         self.testbed.init_datastore_v3_stub()
         self.testbed.init_memcache_stub()
+        ndb.get_context().clear_cache()  # Prevent data from leaking between tests
+
+        self.ne_district = District(
+            id='2015ne',
+            abbreviation='ne',
+            year=2015,
+            elasticsearch_name='NE FIRST'
+        )
+        self.ne_district.put()
 
     def tearDown(self):
         self.testbed.deactivate()
@@ -44,11 +52,14 @@ class TestFIRSTElasticSearchEventListParser(unittest2.TestCase):
                     self.assertEquals(event.start_date, datetime.datetime(year=2015, month=3, day=12, hour=0, minute=0, second=0))
                     self.assertEquals(event.end_date, datetime.datetime(year=2015, month=3, day=15, hour=23, minute=59, second=59))
                     self.assertEquals(event.venue, "Jacob K. Javits Convention Center")
-                    self.assertEquals(event.location, "New York, NY, USA")
+                    self.assertEquals(event.city, "New York")
+                    self.assertEquals(event.state_prov, "NY")
+                    self.assertEquals(event.postalcode, "10001")
+                    self.assertEquals(event.country, "USA")
                     self.assertEquals(event.venue_address, "Jacob K. Javits Convention Center\n655 West 34th Street\nNew York, NY 10001\nUSA")
                     self.assertEquals(event.year, 2015)
                     self.assertEquals(event.event_type_enum, EventType.REGIONAL)
-                    self.assertEquals(event.event_district_enum, DistrictType.NO_DISTRICT)
+                    self.assertEquals(event.district_key, None)
                     self.assertEquals(event.first_eid, '13339')
                     self.assertEquals(event.website, 'http://www.nycfirst.org')
 
@@ -65,11 +76,15 @@ class TestFIRSTElasticSearchEventListParser(unittest2.TestCase):
                     self.assertEquals(event.start_date, datetime.datetime(year=2015, month=3, day=27, hour=0, minute=0, second=0))
                     self.assertEquals(event.end_date, datetime.datetime(year=2015, month=3, day=29, hour=23, minute=59, second=59))
                     self.assertEquals(event.venue, "Hartford Public High School")
-                    self.assertEquals(event.location, "Hartford, CT, USA")
+                    self.assertEquals(event.city, "Hartford")
+                    self.assertEquals(event.state_prov, "CT")
+                    self.assertEquals(event.postalcode, "06105")
+                    self.assertEquals(event.country, "USA")
                     self.assertEquals(event.venue_address, "Hartford Public High School\n55 Forest Street\nHartford, CT 06105\nUSA")
                     self.assertEquals(event.year, 2015)
                     self.assertEquals(event.event_type_enum, EventType.DISTRICT)
-                    self.assertEquals(event.event_district_enum, DistrictType.NEW_ENGLAND)
+                    self.assertEquals(event.district_key.id(), '2015ne')
+                    self.assertEqual(event.district_key, self.ne_district.key)
                     self.assertEquals(event.first_eid, '13443')
                     self.assertEquals(event.website, 'http://www.nefirst.org/')
 
@@ -86,10 +101,14 @@ class TestFIRSTElasticSearchEventListParser(unittest2.TestCase):
                     self.assertEquals(event.start_date, datetime.datetime(year=2015, month=4, day=8, hour=0, minute=0, second=0))
                     self.assertEquals(event.end_date, datetime.datetime(year=2015, month=4, day=11, hour=23, minute=59, second=59))
                     self.assertEquals(event.venue, "Sports and Recreation Center, WPI")
-                    self.assertEquals(event.location, "Worcester, MA, USA")
+                    self.assertEquals(event.city, "Worcester")
+                    self.assertEquals(event.state_prov, "MA")
+                    self.assertEquals(event.postalcode, "01609")
+                    self.assertEquals(event.country, "USA")
                     self.assertEquals(event.venue_address, "Sports and Recreation Center, WPI\n100 Institute Road\nWorcester, MA 01609\nUSA")
                     self.assertEquals(event.year, 2015)
                     self.assertEquals(event.event_type_enum, EventType.DISTRICT_CMP)
-                    self.assertEquals(event.event_district_enum, DistrictType.NEW_ENGLAND)
+                    self.assertEquals(event.district_key.id(), '2015ne')
+                    self.assertEqual(event.district_key, self.ne_district.key)
                     self.assertEquals(event.first_eid, '13423')
                     self.assertEquals(event.website, 'http:///www.nefirst.org/')

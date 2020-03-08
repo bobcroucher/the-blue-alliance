@@ -21,6 +21,30 @@
         <h4>Oops!</h4>
         <p>Something went wrong with editing your profile. Please contact support if the problem persists.</p>
       </div>
+      {% elif status == 'read_key_add_success' %}
+        <div class="alert alert-success">
+          <button type="button" class="close" data-dismiss="alert">&times;</button>
+          <h4>Success!</h4>
+          <p>A new read API key has been successfully added!</p>
+        </div>
+      {% elif status == 'read_key_add_no_description' %}
+      <div class="alert alert-danger">
+        <button type="button" class="close" data-dismiss="alert">&times;</button>
+        <h4>Oops!</h4>
+        <p>You must specify a description when adding a read API key. Please try again.</p>
+      </div>
+      {% elif status == 'read_key_delete_success' %}
+        <div class="alert alert-success">
+          <button type="button" class="close" data-dismiss="alert">&times;</button>
+          <h4>Success!</h4>
+          <p>The selected read API key has been deleted.</p>
+        </div>
+      {% elif status == 'read_key_delete_failure' %}
+      <div class="alert alert-danger">
+        <button type="button" class="close" data-dismiss="alert">&times;</button>
+        <h4>Oops!</h4>
+        <p>Unable to delete the specified read API key. If this problem persists, please contact us.</p>
+      </div>
       {% endif %}
     </div>
   </div>
@@ -37,12 +61,31 @@
     </div>
   </div>
   {% endif %}
+  {% if ping_sent %}
+  <div class="row">
+    <div class="col-md-10 col-md-offset-1">
+      {% if ping_sent == '1' %}
+      <div class="alert alert-success">
+        <button type="button" class="close" data-dismiss="alert">&times;</button>
+        <h4>Success!</h4>
+        <p>Ping was sent</p>
+      </div>
+      {% elif ping_sent == '0' %}
+      <div class="alert alert-danger">
+        <button type="button" class="close" data-dismiss="alert">&times;</button>
+        <h4>Failure</h4>
+        <p>Failed to send ping</p>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
   <div class="row">
     <div class="col-md-10 col-md-offset-1">
       <p class="pull-right">
         <a class="btn btn-warning" href="/logout"><span class="glyphicon glyphicon-remove"></span> Logout</a>
       </p>
-      <h1>Welcome back, {{user_bundle.account.display_name}}!</h1>
+      <h1>Welcome Back, {{user_bundle.account.display_name}}!</h1>
     </div>
   </div>
 
@@ -112,6 +155,108 @@
   </div>
   <hr>
 
+  <div class="row">
+    <div class="col-md-10 col-md-offset-1">
+      <h2>Read API Keys</h2>
+
+      <form class="form-inline pull-right" action="/account/api/read_key_add" method="post">
+        <div class="form-group">
+          <label for="form-description">Description</label>
+          <input type="text" class="form-control" id="form-description" name="description" placeholder="My Scouting App v1">
+        </div>
+        <button type="submit" class="btn btn-success"><span class="glyphicon glyphicon-plus"></span> Add New Key</button>
+      </form>
+
+      <p>These keys allow you to access TBA's read APIv3.</p>
+    </div>
+    <div class="col-md-10 col-md-offset-1">
+      <table class="table table-striped">
+        <tr>
+          <th>X-TBA-Auth-Key</th>
+          <th>Created</th>
+          <th>Description</th>
+          <th></th>
+        </tr>
+        <tbody>
+          {% for key in read_keys %}
+            <tr>
+              <td>
+                {{ key.key.id() }}
+              </td>
+              <td>
+                {{ key.created.strftime('%Y-%m-%d') }}
+              </td>
+              <td>
+                {{ key.description }}
+              </td>
+              <td>
+                <form class="form-inline" action="/account/api/read_key_delete" method="post">
+                  <input type="hidden" name="key_id" value="{{key.key.id()}}">
+                  <button type="submit" class="btn btn-danger"><span class="glyphicon glyphicon-trash"></span> Delete</button>
+                </form>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <hr>
+
+  <div class="row">
+    <div class="col-md-10 col-md-offset-1">
+      <h2>Write API Keys</h2>
+      <p>These keys grant volunteers planning events and working at the scoring table the ability to import offseason event data to TBA. <a href="request/apiwrite" class="btn btn-success pull-right"><span class="glyphicon glyphicon-plus-sign"></span> Request Tokens</a></p>
+    </div>
+    <div class="col-md-10 col-md-offset-1">
+      <table class="table table-striped">
+        <tr>
+          <th>Event</th>
+          <th>Permissions</th>
+          <th>Expires</th>
+          <th>Auth ID</th>
+          <th>Auth Secret</th>
+        </tr>
+        <tbody>
+          {% for key in write_keys %}
+            <tr>
+              <td><ul>
+              {% for event in key.event_list %}
+                <li>
+                  <a href="/event/{{ event.id() }}">{{ event.id() }}</a>
+                  <a href="/eventwizard?event={{ event.id() }}" class="btn btn-default">EventWizard</a>
+                </li>
+                <hr/>
+              {% endfor %}
+              </ul></td>
+              <td>
+                <ul>
+                {% for auth_type in key.auth_types_enum %}
+                  <li>{{auth_write_type_names[auth_type]}}</li>
+                {% endfor %}
+                </ul>
+              </td>
+              <td>
+                {% if key.expiration %}
+                  {{ key.expiration.strftime('%Y-%m-%d') }}
+                {% else %}
+                  --
+                {% endif %}
+              </td>
+              <td>
+                {{ key.key.id() }}
+              </td>
+              <td>
+                {{ key.secret }}
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <hr>
+
   {% if review_permissions %}
   <div class="row">
     <div class="col-md-10 col-md-offset-1">
@@ -142,12 +287,15 @@
       <h2>Connected Devices</h2>
     </div>
     <div class="col-md-10 col-md-offset-1">
-     {% if user_bundle.mobile_clients %}
+      <p class="notifications-disabled-visible">Push notifications (beta) for this device are <strong>disabled</strong>! <a class="btn btn-success" role="button" onclick="setupMessaging(true)">Enable</a></p>
+      <p class="notifications-enabled-visible">Push notifications (beta) for this device are <strong>enabled</strong>! <a class="btn btn-danger" role="button" onclick="disableMessaging()">Disable</a></p>
+      {% if user_bundle.mobile_clients %}
+      <p>All devices will appear below, whether or not push notifications are enabled or disabled for a specific device.</p>
       <table class="table table-striped">
         <tr>
           <th>Type</th>
           <th>Name</th>
-          <th>ID</td>
+          <th>ID</th>
           <th></th>
           <th></th>
           <th></th>
@@ -156,35 +304,43 @@
             <tr>
               <td>{{ client.type_string }}</td>
               <td> {{ client.display_name }} </td>
-              <td>{{ client.short_id }}</td>
+              <td>
+                {% if client.is_webhook %}
+                  URL: {{ client.messaging_id }}
+                  <br/>
+                  Secret: {{ client.secret }}
+                {% else %}
+                  {{ client.short_id }}
+                {% endif %}
+              </td>
               <td><form action="/notifications/broadcast" method="post">
                 <input name="account_id" type="hidden" value="{{user_bundle.account.key.id()}}" />
                 <input name="client_id" type="hidden" value="{{client.key.id()}}" />
                 <button type="submit" class="btn btn-default" {{ping_enabled}}><span class="glyphicon glyphicon-cloud"></span> Ping</button>
               </form></td>
-                <td>
-                  {% if client.is_webhook %}
-                    <form action="/webhooks/delete" method="post">
-                      <input name="account_id" type="hidden" value="{{user_bundle.account.key.id()}}" />
-                      <input name="client_id" type="hidden" value="{{client.key.id()}}" />
-                      <button type="submit" class="btn btn-danger"><span class="glyphicon glyphicon-trash"></span> Delete</button>
+              <td>
+                {% if client.is_webhook %}
+                <form action="/webhooks/delete" method="post">
+                  <input name="account_id" type="hidden" value="{{user_bundle.account.key.id()}}" />
+                  <input name="client_id" type="hidden" value="{{client.key.id()}}" />
+                  <button type="submit" class="btn btn-danger"><span class="glyphicon glyphicon-trash"></span> Delete</button>
+                </form>
+                {% endif %}
+              </td>
+              <td>
+                {% if client.is_webhook %}
+                  {% if client.verified %}
+                    <p><span class="glyphicon glyphicon-check"></span> Verified</p>
+                  {% else %}
+                    <a href="/webhooks/verify/{{client.key.id()}}"><button type="submit" class="btn btn-default"><span class="glyphicon glyphicon-edit"></span> Verify</button></a>
+                    <form action="/webhooks/send_verification" method="post">
+                    <input name="account_id" type="hidden" value="{{user_bundle.account.key.id()}}" />
+                    <input name="client_id" type="hidden" value="{{client.key.id()}}" />
+                    <button type="submit" class="btn btn-default"><span class="glyphicon glyphicon-send"></span> Resend Code</button>
                     </form>
                   {% endif %}
-                </td>
-                <td>
-                  {% if client.is_webhook %}
-                    {% if client.verified %}
-                      <p><span class="glyphicon glyphicon-check"></span> Verified</p>
-                    {% else %}
-                      <a href="/webhooks/verify/{{client.key.id()}}"><button type="submit" class="btn btn-default"><span class="glyphicon glyphicon-edit"></span> Verify</button></a>
-                      <form action="/webhooks/send_verification" method="post">
-                      <input name="account_id" type="hidden" value="{{user_bundle.account.key.id()}}" />
-                      <input name="client_id" type="hidden" value="{{client.key.id()}}" />
-                      <button type="submit" class="btn btn-default"><span class="glyphicon glyphicon-send"></span> Resend Code</button>
-                      </form>
-                    {% endif %}
-                  {% endif %}
-                </td>
+                {% endif %}
+              </td>
             </tr>
           {% endfor %}
      {% else %}

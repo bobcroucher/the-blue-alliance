@@ -1,7 +1,6 @@
 import logging
 import re
 
-from BeautifulSoup import BeautifulSoup
 from google.appengine.api import urlfetch
 
 
@@ -107,17 +106,19 @@ class WebcastParser(object):
             if regex2 is not None:
                 youtube_id = regex2.group(1)
 
-        if youtube_id is None:
+        if not youtube_id:
             return None
         else:
             return youtube_id
 
     @classmethod
     def _parse_ustream_channel(cls, html):
+        from bs4 import BeautifulSoup
+
         html = html.decode("utf-8", "replace")
 
         # parse html for the channel id
-        soup = BeautifulSoup(html, convertEntities=BeautifulSoup.HTML_ENTITIES)
+        soup = BeautifulSoup(html, "html.parser")
         el = soup.find('meta', {'name': 'ustream:channel_id'})
         if el is None:
             return None
@@ -130,10 +131,12 @@ class WebcastParser(object):
 
     @classmethod
     def _parse_livestream_channel(cls, html):
+        from bs4 import BeautifulSoup
+
         html = html.decode("utf-8", "replace")
 
         # parse html for the channel id
-        soup = BeautifulSoup(html, convertEntities=BeautifulSoup.HTML_ENTITIES)
+        soup = BeautifulSoup(html, "html.parser")
         el = soup.find('meta', {'name': 'twitter:player'})
         if el is None:
             return None

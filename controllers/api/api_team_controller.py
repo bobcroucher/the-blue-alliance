@@ -56,7 +56,7 @@ class ApiTeamController(ApiTeamControllerBase):
 
 class ApiTeamEventsController(ApiTeamControllerBase):
     CACHE_KEY_FORMAT = "apiv2_team_events_controller_{}_{}"  # (team_key, year)
-    CACHE_VERSION = 2
+    CACHE_VERSION = 3
     CACHE_HEADER_LENGTH = 60 * 60
 
     def __init__(self, *args, **kw):
@@ -135,7 +135,7 @@ class ApiTeamEventMatchesController(ApiTeamControllerBase):
 
 class ApiTeamMediaController(ApiTeamControllerBase):
     CACHE_KEY_FORMAT = "apiv2_team_media_controller_{}_{}"  # (team_key, year)
-    CACHE_VERSION = 1
+    CACHE_VERSION = 2
     CACHE_HEADER_LENGTH = 60 * 60 * 24
 
     def __init__(self, *args, **kw):
@@ -215,7 +215,7 @@ class ApiTeamHistoryEventsController(ApiTeamControllerBase):
     Returns a JSON list of event models of all events attended by a team
     """
     CACHE_KEY_FORMAT = "apiv2_team_history_events_controller_{}"  # (team_key)
-    CACHE_VERSION = 2
+    CACHE_VERSION = 3
     CACHE_HEADER_LENGTH = 60 * 60 * 24
 
     def __init__(self, *args, **kw):
@@ -287,7 +287,7 @@ class ApiTeamHistoryRobotsController(ApiTeamControllerBase):
 
 class ApiTeamHistoryDistrictsController(ApiTeamControllerBase):
     """
-    Returns a JSON list of all DistrictTeam models associated with a Team
+    Returns a mapping of year: district_key for a Team
     """
     CACHE_KEY_FORMAT = "apiv2_team_history_districts_controller_{}"  # (team_key)
     CACHE_VERSION = 1
@@ -304,7 +304,7 @@ class ApiTeamHistoryDistrictsController(ApiTeamControllerBase):
     def _render(self, team_key):
         self._set_team(team_key)
 
-        district_teams = TeamDistrictsQuery(self.team_key).fetch()
+        districts = TeamDistrictsQuery(self.team_key).fetch()
 
-        team_dict = {int(year): district_key for year, district_key in district_teams.iteritems()}
-        return json.dumps(team_dict, ensure_ascii=True)
+        ret = {district.year: district.key.id() for district in districts}
+        return json.dumps(ret, ensure_ascii=True)

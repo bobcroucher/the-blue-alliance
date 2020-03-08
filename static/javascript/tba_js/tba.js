@@ -29,18 +29,18 @@ $(document).ready(function(){
   var hash = window.location.hash;
   hash && $('ul.nav a[href="' + hash + '"]').tab('show');
 
-  $('.nav-tabs a').click(function (e) {
-    $(this).tab('show');
-    var scrollmem = $('body').scrollTop();
+  $('.nav-tabs a, .nav-pills a').click(function (e) {
+    e.preventDefault();
     window.location.hash = this.hash;
-    $('html,body').scrollTop(scrollmem);
   });
 
 	// Fancybox
 	$(".fancybox").fancybox();
 
-	// Tooltips
-	$("[rel=tooltip]").tooltip();
+  // Tooltips
+  $('body').tooltip({
+      selector: '[rel=tooltip]'
+  });
 
 	// Fitvids
 	$('.fitvids').fitVids();
@@ -58,7 +58,13 @@ $(document).ready(function(){
 	}
 
   // Featherlight Gallery
-  $('.gallery').featherlightGallery();
+  $('.gallery').featherlightGallery('image');
+  // NOTE:
+  // Featherlight supports many types of content, but our specific
+  // useage of Instagram returns an unexpected `content-type`, so in
+  // order to not confuse Featherlight, we're explicitly telling it
+  // to expect images only.
+  // https://github.com/noelboss/featherlight#content-filters
 
 	// Converting match time to local time
   var weekday = new Array(7);
@@ -147,9 +153,23 @@ $(document).ready(function(){
   var dd = today.getDate();
   var mm = today.getMonth() + 1;
   if (dd == 1 && mm == 4) {
-    var urls = ['http://i.imgur.com/hGmvG8L.jpg', 'http://i.imgur.com/bC3gvxa.jpg', 'http://i.imgur.com/8lLN9jB.jpg', 'http://i.imgur.com/qiRHQtB.jpg', 'http://i.imgur.com/zWyyZ2N.jpg', 'http://i.imgur.com/ZUcX3Hw.jpg'];
-    var randInt = Math.floor(Math.random() * 6);
-    var url = urls[randInt];
-    $("#robot-image").html('<div class="thumbnail carousel team-media-carousel"><a href="' + url + '" target="_blank"><img src="' + url + '" alt="April Fools!"></a></div>');
+    // For 2015/2016
+    // var urls = ['http://i.imgur.com/hGmvG8L.jpg', 'http://i.imgur.com/bC3gvxa.jpg', 'http://i.imgur.com/8lLN9jB.jpg', 'http://i.imgur.com/qiRHQtB.jpg', 'http://i.imgur.com/zWyyZ2N.jpg', 'http://i.imgur.com/ZUcX3Hw.jpg'];
+    // var randInt = Math.floor(Math.random() * 6);
+    // var url = urls[randInt];
+    // $("#robot-image").html('<div class="thumbnail carousel team-media-carousel"><a href="' + url + '" target="_blank"><img src="' + url + '" alt="April Fools!"></a></div>');
+
+    // For 2017
+    $(".hidden-banner").removeClass('hidden');
   }
 });
+
+// Init Firebase
+var config = {
+  apiKey: firebaseApiKey,
+  authDomain: firebaseAuthDomain,
+  databaseURL: firebaseDatabaseURL,
+  storageBucket: firebaseStorageBucket,
+  messagingSenderId: firebaseMessagingSenderId,
+};
+firebase.initializeApp(config);

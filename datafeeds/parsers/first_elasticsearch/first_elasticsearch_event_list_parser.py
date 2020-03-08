@@ -3,6 +3,7 @@ import urlparse
 
 from consts.district_type import DistrictType
 from consts.event_type import EventType
+from database.district_query import DistrictsInYearQuery
 from helpers.event_helper import EventHelper
 
 from models.event import Event
@@ -17,6 +18,7 @@ class FIRSTElasticSearchEventListParser(object):
 
     def parse(self, response):
         events = []
+        year_districts_future = DistrictsInYearQuery(self.season).fetch_async()
         for event in response['hits']['hits']:
             first_eid = event['_id']
             event = event['_source']
@@ -29,14 +31,10 @@ class FIRSTElasticSearchEventListParser(object):
             key = "{}{}".format(self.season, code)
             name = event['event_name']
             short_name = EventHelper.getShortName(name)
-            if event_type in EventType.DISTRICT_EVENT_TYPES:
-                district_enum = EventHelper.getDistrictFromEventName(name)
-            else:
-                district_enum = DistrictType.NO_DISTRICT
-            if 'event_city' in event and 'event_stateprov' in event and 'event_country' in event:
-                location = "{}, {}, {}".format(event['event_city'], event['event_stateprov'], event['event_country'])
-            else:
-                location = None
+            city = event.get('event_city', None)
+            state_prov = event.get('event_stateprov', None)
+            country = event.get('event_country', None)
+            postalcode = event.get('event_postalcode', None)
             start = datetime.datetime.strptime(event['date_start'], self.DATE_FORMAT_STR)
             end = datetime.datetime.strptime(event['date_end'], self.DATE_FORMAT_STR) + datetime.timedelta(hours=23, minutes=59, seconds=59)
             venue_address = event['event_venue']
@@ -49,6 +47,12 @@ class FIRSTElasticSearchEventListParser(object):
             raw_website = event.get('event_web_url', None)
             website = urlparse.urlparse(raw_website, 'http').geturl() if raw_website else None
 
+            # Decide what district (if any) this event is in
+            if event_type in EventType.DISTRICT_EVENT_TYPES:
+                district_key = EventHelper.getDistrictKeyFromEventName(name, year_districts_future)
+            else:
+                district_key = None
+
             events.append(Event(
                 id=key,
                 name=name,
@@ -59,10 +63,13 @@ class FIRSTElasticSearchEventListParser(object):
                 start_date=start,
                 end_date=end,
                 venue=event['event_venue'],
-                location=location,
+                city=city,
+                state_prov=state_prov,
+                country=country,
+                postalcode=postalcode,
                 venue_address=venue_address,
                 year=self.season,
-                event_district_enum=district_enum,
+                district_key=district_key,
                 first_eid=first_eid,
                 website=website
             ))

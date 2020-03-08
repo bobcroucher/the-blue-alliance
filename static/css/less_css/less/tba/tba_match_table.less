@@ -57,12 +57,16 @@ table.match-table td.blueScore {
   background-color: #ddddff;
 }
 
-table.match-table td.winner {
+table.match-table .winner {
   font-weight: bold;
 }
 
 table.match-table td.current-team {
   text-decoration: underline;
+}
+
+table.match-table .compact-row {
+  border-top: 1px double #000000;
 }
 
 table.match-table td.icon, table.match-table th.icon {
@@ -129,6 +133,30 @@ table.match-table .favorite-team-dot {
   }
 }
 
-table.match-table .tooltip-inner{
+table.match-table .top-left-dot {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  height: 4px;
+  width: 4px;
+}
+
+table.match-table .top-left-dot-2 {
+  position: absolute;
+  top: 3px;
+  left: 10px;
+  height: 4px;
+  width: 4px;
+}
+
+table.match-table .tooltip-inner {
   width: 130px;
+}
+
+table.match-table .surrogate {
+  border-bottom: 1px dotted;
+}
+
+table.match-table .dq {
+  text-decoration: line-through;
 }

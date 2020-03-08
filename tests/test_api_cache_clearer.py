@@ -1,18 +1,17 @@
 import json
 import unittest2
 import webtest
-import webapp2
 
 from datetime import datetime
 
+from google.appengine.ext import ndb
 from google.appengine.ext import deferred
 from google.appengine.api import taskqueue
 from google.appengine.ext import testbed
 
 import api_main
-
+import tba_config
 from consts.award_type import AwardType
-from consts.district_type import DistrictType
 from consts.event_type import EventType
 from consts.media_type import MediaType
 
@@ -50,6 +49,7 @@ from helpers.team_manipulator import TeamManipulator
 
 from models.award import Award
 from models.cached_response import CachedResponse
+from models.district import District
 from models.event import Event
 from models.event_team import EventTeam
 from models.match import Match
@@ -67,21 +67,35 @@ class TestApiCacheClearer(unittest2.TestCase):
         self.testbed.init_datastore_v3_stub()
         self.testbed.init_urlfetch_stub()
         self.testbed.init_memcache_stub()
+        ndb.get_context().clear_cache()  # Prevent data from leaking between tests
+
         self.testbed.init_taskqueue_stub(root_path=".")
         self.taskqueue_stub = self.testbed.get_stub(testbed.TASKQUEUE_SERVICE_NAME)
+
+        # Enable the cache we're testing
+        tba_config.CONFIG['response_cache'] = True
+
+        self.district_2010fim = District(
+            id='2010fim',
+            year=2010,
+            abbreviation='fim',
+        )
+        self.district_2010fim.put()
 
         # populate mini db
         self.event_2010sc_1 = Event(
             id='2010sc',
             name='Palmetto Regional',
             event_type_enum=EventType.REGIONAL,
-            event_district_enum=DistrictType.MICHIGAN,
+            district_key=ndb.Key(District, '2010fim'),
             short_name='Palmetto',
             event_short='sc',
             year=2010,
             end_date=datetime(2010, 03, 27),
             official=True,
-            location='Clemson, SC',
+            city="Clemson",
+            state_prov="SC",
+            country="USA",
             start_date=datetime(2010, 03, 24),
         )
 
@@ -89,13 +103,15 @@ class TestApiCacheClearer(unittest2.TestCase):
             id='2010sc',
             name='New Regional',
             event_type_enum=EventType.REGIONAL,
-            event_district_enum=DistrictType.MICHIGAN,
+            district_key=ndb.Key(District, '2010fim'),
             short_name='Palmetto',
             event_short='sc',
             year=2010,
             end_date=datetime(2010, 03, 27),
             official=True,
-            location='Clemson, SC',
+            city="Clemson",
+            state_prov="SC",
+            country="USA",
             start_date=datetime(2010, 03, 24),
         )
 
@@ -104,7 +120,9 @@ class TestApiCacheClearer(unittest2.TestCase):
             name='This is a name',
             team_number=1,
             nickname='NICKNAME',
-            address='San Jose, CA, USA',
+            city='San Jose',
+            state_prov='CA',
+            country='USA',
             website='www.usfirst.org',
         )
 
@@ -113,7 +131,9 @@ class TestApiCacheClearer(unittest2.TestCase):
             name='This is a name',
             team_number=1,
             nickname='NICKNAME',
-            address='San Jose, CA, USA',
+            city='San Jose',
+            state_prov='CA',
+            country='USA',
             website='www.thebluealliance.com',
         )
 
@@ -122,7 +142,9 @@ class TestApiCacheClearer(unittest2.TestCase):
             name='This is a name',
             team_number=2,
             nickname='NICKNAME',
-            address='San Jose, CA, USA',
+            city='San Jose',
+            state_prov='CA',
+            country='USA',
             website='www.usfirst.org',
         )
 
@@ -131,7 +153,9 @@ class TestApiCacheClearer(unittest2.TestCase):
             name='This is a name',
             team_number=2,
             nickname='nickname',
-            address='San Jose, CA, USA',
+            city='San Jose',
+            state_prov='CA',
+            country='USA',
             website='www.usfirst.org',
         )
 
@@ -273,7 +297,7 @@ class TestApiCacheClearer(unittest2.TestCase):
             deferred.run(task.payload)
             queue.delete_tasks(task)
 
-    def testRobots(self):
+    def test_robots(self):
         self.assertEqual(CachedResponse.get_by_id(self.robots_cache_key), None)
         TeamManipulator.createOrUpdate(self.team_frc1_1)
         RobotManipulator.createOrUpdate(self.robot1)
@@ -288,7 +312,7 @@ class TestApiCacheClearer(unittest2.TestCase):
         response = self.testapp.get('/api/v2/team/frc1/history/robots', headers={'X-TBA-App-Id': 'tba-tests:api-cache-clear-test:v01'})
         self.assertNotEqual(CachedResponse.get_by_id(self.robots_cache_key), None)
 
-    def resetAll(self, flushed=False):
+    def test_reset_all(self, flushed=False):
         response = self.testapp.get('/api/v2/events/2010', headers={'X-TBA-App-Id': 'tba-tests:api-cache-clear-test:v01'})
         self.assertNotEqual(CachedResponse.get_by_id(self.eventlist_2010_cache_key), None)
 
@@ -1086,7 +1110,7 @@ class TestApiCacheClearer(unittest2.TestCase):
         self.assertEqual(CachedResponse.get_by_id(self.district_events_2010_cache_key), None)
         self.assertEqual(CachedResponse.get_by_id(self.district_rankings_2010_cache_key), None)
 
-        self.resetAll(flushed=True)
+        self.test_reset_all(flushed=True)
 
         # this shouldn't evict any caches
         EventManipulator.createOrUpdate(self.event_2010sc_1)
@@ -1156,7 +1180,7 @@ class TestApiCacheClearer(unittest2.TestCase):
         self.assertEqual(CachedResponse.get_by_id(self.district_events_2010_cache_key), None)
         self.assertEqual(CachedResponse.get_by_id(self.district_rankings_2010_cache_key), None)
 
-        self.resetAll()
+        self.test_reset_all()
 
         # updating a team
         TeamManipulator.createOrUpdate(self.team_frc1_2)
@@ -1188,7 +1212,7 @@ class TestApiCacheClearer(unittest2.TestCase):
         self.assertNotEqual(CachedResponse.get_by_id(self.district_events_2010_cache_key), None)
         self.assertNotEqual(CachedResponse.get_by_id(self.district_rankings_2010_cache_key), None)
 
-        self.resetAll()
+        self.test_reset_all()
 
         # updating a match
         MatchManipulator.createOrUpdate(self.match1_2)
@@ -1220,7 +1244,7 @@ class TestApiCacheClearer(unittest2.TestCase):
         self.assertNotEqual(CachedResponse.get_by_id(self.district_events_2010_cache_key), None)
         self.assertNotEqual(CachedResponse.get_by_id(self.district_rankings_2010_cache_key), None)
 
-        self.resetAll()
+        self.test_reset_all()
 
         # updating an award
         AwardManipulator.createOrUpdate(self.award1_2)
@@ -1252,7 +1276,7 @@ class TestApiCacheClearer(unittest2.TestCase):
         self.assertNotEqual(CachedResponse.get_by_id(self.district_events_2010_cache_key), None)
         self.assertNotEqual(CachedResponse.get_by_id(self.district_rankings_2010_cache_key), None)
 
-        self.resetAll()
+        self.test_reset_all()
 
         # updating a media
         MediaManipulator.createOrUpdate(self.media1_2)
@@ -1284,7 +1308,7 @@ class TestApiCacheClearer(unittest2.TestCase):
         self.assertNotEqual(CachedResponse.get_by_id(self.district_events_2010_cache_key), None)
         self.assertNotEqual(CachedResponse.get_by_id(self.district_rankings_2010_cache_key), None)
 
-        self.resetAll()
+        self.test_reset_all()
 
         # deleting a media
         MediaManipulator.delete(self.media1_2)
@@ -1316,7 +1340,7 @@ class TestApiCacheClearer(unittest2.TestCase):
         self.assertNotEqual(CachedResponse.get_by_id(self.district_events_2010_cache_key), None)
         self.assertNotEqual(CachedResponse.get_by_id(self.district_rankings_2010_cache_key), None)
 
-        self.resetAll()
+        self.test_reset_all()
 
         # deleting an award
         AwardManipulator.delete(self.award1_2)
@@ -1348,7 +1372,7 @@ class TestApiCacheClearer(unittest2.TestCase):
         self.assertNotEqual(CachedResponse.get_by_id(self.district_events_2010_cache_key), None)
         self.assertNotEqual(CachedResponse.get_by_id(self.district_rankings_2010_cache_key), None)
 
-        self.resetAll()
+        self.test_reset_all()
 
         # deleting a match
         MatchManipulator.delete(self.match1_2)
@@ -1380,7 +1404,7 @@ class TestApiCacheClearer(unittest2.TestCase):
         self.assertNotEqual(CachedResponse.get_by_id(self.district_events_2010_cache_key), None)
         self.assertNotEqual(CachedResponse.get_by_id(self.district_rankings_2010_cache_key), None)
 
-        self.resetAll()
+        self.test_reset_all()
 
         # deleting a team
         TeamManipulator.delete(self.team_frc2_2)
@@ -1412,7 +1436,7 @@ class TestApiCacheClearer(unittest2.TestCase):
         self.assertNotEqual(CachedResponse.get_by_id(self.district_events_2010_cache_key), None)
         self.assertNotEqual(CachedResponse.get_by_id(self.district_rankings_2010_cache_key), None)
 
-        self.resetAll()
+        self.test_reset_all()
 
         # deleting an event
         EventManipulator.delete(self.event_2010sc_2)
@@ -1444,7 +1468,7 @@ class TestApiCacheClearer(unittest2.TestCase):
         self.assertEqual(CachedResponse.get_by_id(self.district_events_2010_cache_key), None)
         self.assertEqual(CachedResponse.get_by_id(self.district_rankings_2010_cache_key), None)
 
-        self.resetAll()
+        self.test_reset_all()
 
         # deleting an eventteam
         EventTeamManipulator.delete(self.eventteam_2010sc_frc1)
